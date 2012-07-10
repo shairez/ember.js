@@ -131,6 +131,12 @@ Ember.get = get;
 */
 Ember.set = set;
 
+if (Ember.config.overrideAccessors) {
+  Ember.config.overrideAccessors();
+  get = Ember.get;
+  set = Ember.set;
+}
+
 // ..........................................................
 // PATHS
 //
@@ -179,11 +185,6 @@ function normalizeTuple(target, path) {
   TUPLE_RET[1] = path;
   return TUPLE_RET;
 }
-
-/** @private */
-Ember.isGlobal = function(path) {
-  return IS_GLOBAL.test(path);
-};
 
 /**
   @private
@@ -248,7 +249,8 @@ Ember.getPath = function(root, path) {
 Ember.setPath = function(root, path, value, tolerant) {
   var keyName;
 
-  if (typeof root === 'string' && IS_GLOBAL.test(root)) {
+  if (typeof root === 'string') {
+    Ember.assert("Path '" + root + "' must be global if no root is given.", IS_GLOBAL.test(root));
     value = path;
     path = root;
     root = null;
@@ -302,5 +304,5 @@ Ember.trySetPath = function(root, path, value) {
   @returns Boolean
 */
 Ember.isGlobalPath = function(path) {
-  return !HAS_THIS.test(path) && IS_GLOBAL.test(path);
+  return IS_GLOBAL.test(path);
 };

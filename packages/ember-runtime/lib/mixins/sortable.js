@@ -1,6 +1,13 @@
 var get = Ember.get, set = Ember.set, forEach = Ember.EnumerableUtils.forEach;
 
-Ember.SortableMixin = Ember.Mixin.create(Ember.MutableEnumerable, {
+/**
+ @class
+
+ @extends Ember.Mixin
+ @extends Ember.MutableEnumerable
+*/
+Ember.SortableMixin = Ember.Mixin.create(Ember.MutableEnumerable,
+  /** @scope Ember.Observable.prototype */ {
   sortProperties: null,
   sortAscending: true,
 
@@ -134,7 +141,6 @@ Ember.SortableMixin = Ember.Mixin.create(Ember.MutableEnumerable, {
         forEach(sortProperties, function(sortProperty) {
           Ember.addObserver(item, sortProperty, this, 'contentItemSortPropertyDidChange');
         }, this);
-        this.arrayContentDidChange(idx, 0, 1);
       }, this);
     }
 

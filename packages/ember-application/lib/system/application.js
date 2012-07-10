@@ -113,15 +113,15 @@ Ember.Application = Ember.Namespace.extend(
 
     if (router) {
       set(this, 'router', router);
-    }
 
-    // By default, the router's namespace is the current application.
-    //
-    // This allows it to find model classes when a state has a
-    // route like `/posts/:post_id`. In that case, it would first
-    // convert `post_id` into `Post`, and then look it up on its
-    // namespace.
-    set(router, 'namespace', this);
+      // By default, the router's namespace is the current application.
+      //
+      // This allows it to find model classes when a state has a
+      // route like `/posts/:post_id`. In that case, it would first
+      // convert `post_id` into `Post`, and then look it up on its
+      // namespace.
+      set(router, 'namespace', this);
+    }
 
     Ember.runLoadHooks('application', this);
 
@@ -218,7 +218,7 @@ Ember.Application.registerInjection({
   injection: function(app, router, property) {
     if (!/^[A-Z].*Controller$/.test(property)) { return; }
 
-    var name = property[0].toLowerCase() + property.substr(1),
+    var name = property.charAt(0).toLowerCase() + property.substr(1),
         controller = app[property].create();
 
     router.set(name, controller);

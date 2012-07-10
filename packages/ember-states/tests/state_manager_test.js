@@ -192,6 +192,40 @@ test("it automatically transitions to a default substate specified using the ini
   ok(get(stateManager, 'currentState').isStart, "automatically transitions to beginning substate");
 });
 
+test("it automatically synchronously transitions into initialState in an event", function() {
+  var count = 0;
+
+  stateManager = Ember.StateManager.create({
+    root: Ember.State.create({
+      original: Ember.State.create({
+        zomgAnEvent: function(manager) {
+          manager.transitionTo('nextState');
+          manager.send('zomgAnotherEvent');
+        }
+      }),
+
+      nextState: Ember.State.create({
+        initialState: 'begin',
+
+        begin: Ember.State.create({
+          zomgAnotherEvent: function(manager) {
+            count++;
+          }
+        })
+      })
+    })
+  });
+
+  Ember.run(function() {
+    stateManager.transitionTo('root.original');
+  });
+
+  Ember.run(function() {
+    stateManager.send('zomgAnEvent');
+    equal(count, 1, "the initialState was synchronously effective");
+  });
+});
+
 test("it automatically transitions to multiple substates specified using either start or initialState property", function() {
   stateManager = Ember.StateManager.create({
     start: Ember.State.create({
@@ -511,22 +545,16 @@ test("if a context is passed to a transition and the path is to the current stat
 });
 
 test("if no context is provided, setup is triggered with an undefined context", function() {
-  expect(2);
+  expect(1);
 
   Ember.run(function() {
     stateManager = Ember.StateManager.create({
       start: Ember.State.create({
         goNext: function(manager) {
-          manager.transitionTo('foo.next');
-        }
-      }),
+          manager.transitionTo('next');
+        },
 
-      foo: Ember.State.create({
         next: Ember.State.create({
-          goNext: function(manager, context) {
-            manager.transitionTo('next');
-          },
-
           setup: function(manager, context) {
             equal(context, undefined, "setup is called with no context");
           }
@@ -536,7 +564,6 @@ test("if no context is provided, setup is triggered with an undefined context", 
   });
 
   stateManager.send('goNext');
-  stateManager.send('goNext');
 });
 
 test("multiple contexts can be provided in a single transitionTo", function() {
@@ -544,11 +571,7 @@ test("multiple contexts can be provided in a single transitionTo", function() {
 
   Ember.run(function() {
     stateManager = Ember.StateManager.create({
-      start: Ember.State.create({
-        goNuts: function(manager, context) {
-          manager.transitionTo('foo.next', context);
-        }
-      }),
+      start: Ember.State.create(),
 
       planters: Ember.State.create({
         setup: function(manager, context) {
@@ -564,5 +587,131 @@ test("multiple contexts can be provided in a single transitionTo", function() {
     });
   });
 
-  stateManager.transitionTo(['planters', { company: true }], ['nuts', { product: true }]);
+  stateManager.transitionTo('planters.nuts', { company: true }, { product: true });
+});
+
+test("multiple contexts only apply to states that need them", function() {
+  expect(4);
+
+  Ember.run(function() {
+    stateManager = Ember.StateManager.create({
+      start: Ember.State.create(),
+
+      parent: Ember.State.create({
+        hasContext: false,
+
+        setup: function(manager, context) {
+          equal(context, undefined);
+        },
+
+        child: Ember.State.create({
+          setup: function(manager, context) {
+            equal(context, 'one');
+          },
+
+          grandchild: Ember.State.create({
+            initialState: 'greatGrandchild',
+
+            setup: function(manager, context) {
+              equal(context, 'two');
+            },
+
+            greatGrandchild: Ember.State.create({
+              setup: function(manager, context) {
+                equal(context, undefined);
+              }
+            })
+          })
+        })
+      })
+    });
+  });
+
+  stateManager.transitionTo('parent.child.grandchild', 'one', 'two');
+});
+
+test("transitionEvent is called for each nested state", function() {
+  expect(4);
+
+  var calledOnParent = false,
+      calledOnChild = true;
+
+  Ember.run(function() {
+    stateManager = Ember.StateManager.create({
+      start: Ember.State.create(),
+
+      planters: Ember.State.create({
+        setup: function(manager, context) {
+          calledOnParent = true;
+        },
+
+        nuts: Ember.State.create({
+          setup: function(manager, context) {
+            calledOnChild = true;
+          }
+        })
+      })
+    });
+  });
+
+  stateManager.transitionTo('planters.nuts');
+
+  ok(calledOnParent, 'called transitionEvent on parent');
+  ok(calledOnChild, 'called transitionEvent on child');
+
+  // repeat the test now that the path is cached
+
+  stateManager.transitionTo('start');
+
+  calledOnParent = false;
+  calledOnChild = false;
+
+  stateManager.transitionTo('planters.nuts');
+
+  ok(calledOnParent, 'called transitionEvent on parent');
+  ok(calledOnChild, 'called transitionEvent on child');
+});
+
+test("transitionEvent is called for each nested state with context", function() {
+  expect(8);
+
+  var calledOnParent = false,
+      calledOnChild = true;
+
+  Ember.run(function() {
+    stateManager = Ember.StateManager.create({
+      start: Ember.State.create(),
+
+      planters: Ember.State.create({
+        setup: function(manager, context) {
+          calledOnParent = true;
+          ok(!context, 'single context is not called on parent');
+        },
+
+        nuts: Ember.State.create({
+          setup: function(manager, context) {
+            calledOnChild = true;
+            equal(context, 'context', 'child gets context');
+          }
+        })
+      })
+    });
+  });
+
+  stateManager.transitionTo('planters.nuts', 'context');
+
+  ok(calledOnParent, 'called transitionEvent on parent');
+  ok(calledOnChild, 'called transitionEvent on child');
+
+  // repeat the test now that the path is cached
+
+  stateManager.transitionTo('start');
+
+  calledOnParent = false;
+  calledOnChild = false;
+
+  stateManager.transitionTo('planters.nuts', 'context');
+
+  ok(calledOnParent, 'called transitionEvent on parent');
+  ok(calledOnChild, 'called transitionEvent on child');
 });

@@ -20,10 +20,31 @@
 
 require('ember-metal/array');
 require('ember-metal/utils');
+require('ember-metal/core');
 
 /** @private */
 var guidFor = Ember.guidFor,
     indexOf = Ember.ArrayPolyfills.indexOf;
+
+var copy = function(obj) {
+  var output = {};
+
+  for (var prop in obj) {
+    if (obj.hasOwnProperty(prop)) { output[prop] = obj[prop]; }
+  }
+
+  return output;
+};
+
+var copyMap = function(original, newObject) {
+  var keys = original.keys.copy(),
+      values = copy(original.values);
+
+  newObject.keys = keys;
+  newObject.values = values;
+
+  return newObject;
+};
 
 // This class is used internally by Ember.js and Ember Data.
 // Please do not use it at this time. We plan to clean it up
@@ -81,6 +102,15 @@ OrderedSet.prototype = {
 
   toArray: function() {
     return this.list.slice();
+  },
+
+  copy: function() {
+    var set = new OrderedSet();
+
+    set.presenceSet = copy(this.presenceSet);
+    set.list = this.list.slice();
+
+    return set;
   }
 };
 
@@ -196,6 +226,42 @@ Map.prototype = {
       var guid = guidFor(key);
       callback.call(self, key, values[guid]);
     });
+  },
+
+  copy: function() {
+    return copyMap(this, new Map());
   }
 };
 
+var MapWithDefault = Ember.MapWithDefault = function(options) {
+  Map.call(this);
+  this.defaultValue = options.defaultValue;
+};
+
+MapWithDefault.create = function(options) {
+  if (options) {
+    return new MapWithDefault(options);
+  } else {
+    return new Map();
+  }
+};
+
+MapWithDefault.prototype = Ember.create(Map.prototype);
+
+MapWithDefault.prototype.get = function(key) {
+  var hasValue = this.has(key);
+
+  if (hasValue) {
+    return Map.prototype.get.call(this, key);
+  } else {
+    var defaultValue = this.defaultValue(key);
+    this.set(key, defaultValue);
+    return defaultValue;
+  }
+};
+
+MapWithDefault.prototype.copy = function() {
+  return copyMap(this, new MapWithDefault({
+    defaultValue: this.defaultValue
+  }));
+};

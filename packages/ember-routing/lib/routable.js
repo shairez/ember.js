@@ -59,7 +59,9 @@ Ember.Routable = Ember.Mixin.create({
   */
   stashContext: function(manager, context) {
     var serialized = this.serialize(manager, context);
+    Ember.assert('serialize must return a hash', !serialized || typeof serialized === 'object');
 
+    manager.setStateMeta(this, 'context', context);
     manager.setStateMeta(this, 'serialized', serialized);
 
     if (get(this, 'isRoutable') && !get(manager, 'isRouting')) {
@@ -76,7 +78,7 @@ Ember.Routable = Ember.Mixin.create({
     In general, this will update the browser's URL.
   */
   updateRoute: function(manager, location) {
-    if (get(this, 'isLeaf')) {
+    if (get(this, 'isLeafRoute')) {
       var path = this.absoluteRoute(manager);
       location.setURL(path);
     }
@@ -131,12 +133,36 @@ Ember.Routable = Ember.Mixin.create({
   /**
     @private
 
+    Determine if this is the last routeable state
+  */
+  isLeafRoute: Ember.computed(function() {
+    if (get(this, 'isLeaf')) { return true; }
+    return !get(this, 'childStates').findProperty('isRoutable');
+  }).cacheable(),
+
+  /**
+    @private
+
     A _RouteMatcher object generated from the current route's `route`
     string property.
   */
   routeMatcher: Ember.computed(function() {
-    if (get(this, 'route')) {
-      return Ember._RouteMatcher.create({ route: get(this, 'route') });
+    var route = get(this, 'route');
+    if (route) {
+      return Ember._RouteMatcher.create({ route: route });
+    }
+  }).cacheable(),
+
+  /**
+    @private
+
+    Check whether the route has dynamic segments and therefore takes
+    a context.
+  */
+  hasContext: Ember.computed(function() {
+    var routeMatcher = get(this, 'routeMatcher');
+    if (routeMatcher) {
+      return routeMatcher.identifiers.length > 0;
     }
   }).cacheable(),
 
@@ -257,9 +283,11 @@ Ember.Routable = Ember.Mixin.create({
     on the state whose path is `/posts` with the path `/2/comments`.
   */
   routePath: function(manager, path) {
-    if (get(this, 'isLeaf')) { return; }
+    if (get(this, 'isLeafRoute')) { return; }
 
     var childStates = get(this, 'childStates'), match;
+
+    childStates = Ember.A(childStates.filterProperty('isRoutable'));
 
     childStates = childStates.sort(function(a, b) {
       var aDynamicSegments = getPath(a, 'routeMatcher.identifiers.length'),
@@ -287,7 +315,7 @@ Ember.Routable = Ember.Mixin.create({
 
     Ember.assert("Could not find state for path " + path, !!state);
 
-    var object = state.deserialize(manager, match.hash) || {};
+    var object = state.deserialize(manager, match.hash);
     manager.transitionTo(get(state, 'path'), object);
     manager.send('routePath', match.remaining);
   },

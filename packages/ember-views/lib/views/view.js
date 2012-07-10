@@ -374,8 +374,8 @@ var invokeForState = {
   by the event manager will still trigger method calls on the descendent.
 
       OuterView = Ember.View.extend({
+        template: Ember.Handlebars.compile("outer {{#view InnerView}}inner{{/view}} outer"),
         eventManager: Ember.Object.create({
-          template: Ember.Handlebars.compile("outer {{#view InnerView}}inner{{/view}} outer"),
           mouseEnter: function(event, view){
             // view might be instance of either
             // OutsideView or InnerView depending on
@@ -418,6 +418,7 @@ var invokeForState = {
   Handlebars helper. See `Handlebars.helpers.view` for additional information.
 
   @extends Ember.Object
+  @extends Ember.Evented
 */
 Ember.View = Ember.Object.extend(Ember.Evented,
 /** @scope Ember.View.prototype */ {
@@ -774,8 +775,8 @@ Ember.View = Ember.Object.extend(Ember.Evented,
     var templateData = get(this, 'templateData');
 
     var keywords = templateData ? Ember.copy(templateData.keywords) : {};
-    keywords.view = get(this, 'concreteView');
-    keywords.controller = get(this, 'controller');
+    set(keywords, 'view', get(this, 'concreteView'));
+    set(keywords, 'controller', get(this, 'controller'));
 
     return keywords;
   },

@@ -39,11 +39,11 @@ test("a RouteMatcher matches routes", function() {
 
   match = matcher.match('foo');
   equal(match.remaining, "");
-  deepEqual(match.hash, {});
+  equal(match.hash, null);
 
   match = matcher.match('foo/bar');
   equal(match.remaining, "/bar");
-  deepEqual(match.hash, {});
+  equal(match.hash, null);
 
   match = matcher.match('bar');
   equal(match, undefined);
@@ -118,6 +118,46 @@ test("when you descend into a state, the route is set", function() {
 
         bazChild: Ember.Route.create({
           route: 'baz'
+        })
+      })
+    })
+  });
+
+  var count = 0;
+
+  var router = Ember.Router.create({
+    root: state,
+    location: {
+      setURL: function(url) {
+        if (count === 0) {
+          equal(url, '/foo/bar/baz', "The current URL should be passed in");
+          count++;
+        } else {
+          ok(false, "Should not get here");
+        }
+      }
+    }
+  });
+
+  router.send('ready');
+});
+
+test("when you descend into a state, the route is set even when child states (not routes) are present", function() {
+  var state = Ember.Route.create({
+    ready: function(manager) {
+      manager.transitionTo('fooChild.barChild.bazChild');
+    },
+
+    fooChild: Ember.Route.create({
+      route: 'foo',
+
+      barChild: Ember.Route.create({
+        route: 'bar',
+
+        bazChild: Ember.Route.create({
+          route: 'baz',
+
+          basicState: Ember.State.create()
         })
       })
     })
@@ -424,7 +464,7 @@ var locationStub = {
   setURL: Ember.K
 };
 var expectURL = function(url) {
-  equal(url, formatURLArgument, "should invoke formatURL with URL "+url);
+  equal(formatURLArgument, url, "should invoke formatURL with URL "+url);
 };
 
 test("urlFor returns an absolute route", function() {

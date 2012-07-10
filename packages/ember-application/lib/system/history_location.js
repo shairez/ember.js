@@ -7,8 +7,15 @@ var get = Ember.get, set = Ember.set;
 Ember.HistoryLocation = Ember.Object.extend({
   init: function() {
     set(this, 'location', get(this, 'location') || window.location);
-    set(this, 'callbacks', Ember.A());
+    set(this, '_initialURL', get(this, 'location').pathname);
   },
+
+  /**
+    @private
+
+    Used to give history a starting reference
+   */
+  _initialURL: null,
 
   /**
     @private
@@ -25,12 +32,13 @@ Ember.HistoryLocation = Ember.Object.extend({
     Uses `history.pushState` to update the url without a page reload.
   */
   setURL: function(path) {
-    var state = window.history.state;
+    var state = window.history.state,
+        initialURL = get(this, '_initialURL');
+
     if (path === "") { path = '/'; }
-    // We only want pushState to be executed if we are passing
-    // in a new path, otherwise a new state will be inserted
-    // for the same path.
-    if (!state || (state && state.path !== path)) {
+
+    if ((initialURL && initialURL !== path) || (state && state.path !== path)) {
+      set(this, '_initialURL', null);
       window.history.pushState({ path: path }, null, path);
     }
   },
@@ -42,18 +50,11 @@ Ember.HistoryLocation = Ember.Object.extend({
     history changes, including using forward and back buttons.
   */
   onUpdateURL: function(callback) {
-    var self = this;
+    var guid = Ember.guidFor(this);
 
-    var popstate = function(e) {
+    Ember.$(window).bind('popstate.ember-location-'+guid, function(e) {
       callback(location.pathname);
-    };
-
-    get(this, 'callbacks').pushObject(popstate);
-
-    // This won't work on old browsers anyway, but this check prevents errors
-    if (window.addEventListener) {
-      window.addEventListener('popstate', popstate, false);
-    }
+    });
   },
 
   /**
@@ -67,10 +68,9 @@ Ember.HistoryLocation = Ember.Object.extend({
   },
 
   willDestroy: function() {
-    get(this, 'callbacks').forEach(function(callback) {
-      window.removeEventListener('popstate', callback, false);
-    });
-    set(this, 'callbacks', null);
+    var guid = Ember.guidFor(this);
+
+    Ember.$(window).unbind('popstate.ember-location-'+guid);
   }
 });
 

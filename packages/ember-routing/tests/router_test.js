@@ -148,6 +148,44 @@ test("router.urlForEvent works with changing context in the current state", func
 });
 
 
+test("router.urlForEvent works for nested routes with a context", function() {
+  var router = Ember.Router.create({
+    location: location,
+    namespace: namespace,
+    root: Ember.Route.create({
+      index: Ember.Route.create({
+        route: '/',
+
+        showDashboardActivity: function(router) {
+          router.transitionTo('dashboard.activity');
+        },
+
+        eventTransitions: {
+          showDashboardActivity: 'dashboard.activity'
+        }
+      }),
+
+      dashboard: Ember.Route.create({
+        route: '/dashboard/:component_id',
+
+        activity: Ember.Route.create({
+          route: '/activity'
+        })
+      })
+    })
+  });
+
+  Ember.run(function() {
+    router.route('/');
+  });
+
+  equal(router.getPath('currentState.path'), "root.index", "precond - the router is in root.index");
+
+  var url = router.urlForEvent('showDashboardActivity', { id: 1 });
+  equal(url, "#!#/dashboard/1/activity");
+});
+
+
 test("router.urlForEvent works with Ember.State.transitionTo", function() {
   var router = Ember.Router.create({
     location: location,
@@ -296,7 +334,32 @@ test("should update route for redirections", function() {
     })
   });
 
-  router.route('/');
+  Ember.run(function() {
+    router.route('/');
+  });
 
   equal(location.url, '/login');
+});
+
+test("respects initialState if leafRoute with child states", function() {
+  var router = Ember.Router.create({
+    location: location,
+    namespace: namespace,
+    root: Ember.Route.create({
+      foo: Ember.Route.create({
+        route: '/foo',
+
+        initialState: 'bar',
+
+        bar: Ember.State.create()
+      })
+    })
+  });
+
+  Ember.run(function() {
+    router.route('/foo');
+  });
+
+  equal(location.url, '/foo');
+  equal(router.getPath('currentState.name'), 'bar');
 });
