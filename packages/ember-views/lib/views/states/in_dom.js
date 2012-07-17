@@ -26,8 +26,6 @@ Ember.View.states.hasElement = {
 
   setElement: function(view, value) {
     if (value === null) {
-      view.invalidateRecursively('element');
-
       view.transitionTo('preRender');
     } else {
       throw "You cannot set an element to a non-null value when the element is already in the DOM.";
@@ -58,9 +56,9 @@ Ember.View.states.hasElement = {
   },
 
   empty: function(view) {
-    var _childViews = get(view, '_childViews'), len, idx;
+    var _childViews = view._childViews, len, idx;
     if (_childViews) {
-      len = get(_childViews, 'length');
+      len = _childViews.length;
       for (idx = 0; idx < len; idx++) {
         _childViews[idx]._notifyWillDestroyElement();
       }

@@ -39,11 +39,6 @@ function iter(key, value) {
   return i ;
 }
 
-/** @private */
-function xform(target, method, params) {
-  method.call(target, params[0], params[2], params[3]);
-}
-
 /**
   @class
 
@@ -643,8 +638,8 @@ Ember.Enumerable = Ember.Mixin.create(
 
     var hasObservers = get(this, 'hasEnumerableObservers');
     if (!hasObservers) Ember.propertyWillChange(this, 'hasEnumerableObservers');
-    Ember.addListener(this, '@enumerable:before', target, willChange, xform);
-    Ember.addListener(this, '@enumerable:change', target, didChange, xform);
+    Ember.addListener(this, '@enumerable:before', target, willChange);
+    Ember.addListener(this, '@enumerable:change', target, didChange);
     if (!hasObservers) Ember.propertyDidChange(this, 'hasEnumerableObservers');
     return this;
   },
@@ -709,7 +704,7 @@ Ember.Enumerable = Ember.Mixin.create(
 
     Ember.propertyWillChange(this, '[]');
     if (hasDelta) Ember.propertyWillChange(this, 'length');
-    Ember.sendEvent(this, '@enumerable:before', removing, adding);
+    Ember.sendEvent(this, '@enumerable:before', [this, removing, adding]);
 
     return this;
   },
@@ -751,7 +746,7 @@ Ember.Enumerable = Ember.Mixin.create(
     if (removing === -1) removing = null;
     if (adding   === -1) adding   = null;
 
-    Ember.sendEvent(this, '@enumerable:change', removing, adding);
+    Ember.sendEvent(this, '@enumerable:change', [this, removing, adding]);
     if (hasDelta) Ember.propertyDidChange(this, 'length');
     Ember.propertyDidChange(this, '[]');
 

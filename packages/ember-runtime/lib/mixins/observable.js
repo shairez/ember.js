@@ -4,7 +4,7 @@
 // License:   Licensed under MIT license (see license.js)
 // ==========================================================================
 
-var get = Ember.get, set = Ember.set;
+var get = Ember.get, set = Ember.set, defineProperty = Ember.defineProperty;
 
 /**
   @class
@@ -388,7 +388,8 @@ Ember.Observable = Ember.Mixin.create(/** @scope Ember.Observable.prototype */ {
     @param {Object} value The value the unknown property is to be set to.
   */
   setUnknownProperty: function(key, value) {
-    this[key] = value;
+    defineProperty(this, key);
+    set(this, key, value);
   },
 
   /**

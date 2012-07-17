@@ -209,12 +209,12 @@ var childViewsProperty = Ember.computed(function() {
 Ember.ContainerView = Ember.View.extend({
 
   init: function() {
+    this._super();
+
     var childViews = get(this, 'childViews');
     Ember.defineProperty(this, 'childViews', childViewsProperty);
 
-    this._super();
-
-    var _childViews = get(this, '_childViews');
+    var _childViews = this._childViews;
 
     forEach(childViews, function(viewName, idx) {
       var view;
@@ -229,6 +229,9 @@ Ember.ContainerView = Ember.View.extend({
 
       _childViews[idx] = view;
     }, this);
+
+    var currentView = get(this, 'currentView');
+    if (currentView) _childViews.push(this.createChildView(currentView));
 
     // Make the _childViews array observable
     Ember.A(_childViews);

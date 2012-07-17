@@ -15,11 +15,6 @@ var get = Ember.get, set = Ember.set, meta = Ember.meta, map = Ember.EnumerableU
 /** @private */
 function none(obj) { return obj===null || obj===undefined; }
 
-/** @private */
-function xform(target, method, params) {
-  method.call(target, params[0], params[2], params[3], params[4]);
-}
-
 // ..........................................................
 // ARRAY
 //
@@ -262,8 +257,8 @@ Ember.Array = Ember.Mixin.create(Ember.Enumerable, /** @scope Ember.Array.protot
 
     var hasObservers = get(this, 'hasArrayObservers');
     if (!hasObservers) Ember.propertyWillChange(this, 'hasArrayObservers');
-    Ember.addListener(this, '@array:before', target, willChange, xform);
-    Ember.addListener(this, '@array:change', target, didChange, xform);
+    Ember.addListener(this, '@array:before', target, willChange);
+    Ember.addListener(this, '@array:change', target, didChange);
     if (!hasObservers) Ember.propertyDidChange(this, 'hasArrayObservers');
     return this;
   },
@@ -284,8 +279,8 @@ Ember.Array = Ember.Mixin.create(Ember.Enumerable, /** @scope Ember.Array.protot
 
     var hasObservers = get(this, 'hasArrayObservers');
     if (hasObservers) Ember.propertyWillChange(this, 'hasArrayObservers');
-    Ember.removeListener(this, '@array:before', target, willChange, xform);
-    Ember.removeListener(this, '@array:change', target, didChange, xform);
+    Ember.removeListener(this, '@array:before', target, willChange);
+    Ember.removeListener(this, '@array:change', target, didChange);
     if (hasObservers) Ember.propertyDidChange(this, 'hasArrayObservers');
     return this;
   },
@@ -331,7 +326,7 @@ Ember.Array = Ember.Mixin.create(Ember.Enumerable, /** @scope Ember.Array.protot
     // Make sure the @each proxy is set up if anyone is observing @each
     if (Ember.isWatching(this, '@each')) { get(this, '@each'); }
 
-    Ember.sendEvent(this, '@array:before', startIdx, removeAmt, addAmt);
+    Ember.sendEvent(this, '@array:before', [this, startIdx, removeAmt, addAmt]);
 
     var removing, lim;
     if (startIdx>=0 && removeAmt>=0 && get(this, 'hasEnumerableObservers')) {
@@ -368,7 +363,7 @@ Ember.Array = Ember.Mixin.create(Ember.Enumerable, /** @scope Ember.Array.protot
     }
 
     this.enumerableContentDidChange(removeAmt, adding);
-    Ember.sendEvent(this, '@array:change', startIdx, removeAmt, addAmt);
+    Ember.sendEvent(this, '@array:change', [this, startIdx, removeAmt, addAmt]);
 
     var length      = get(this, 'length'),
         cachedFirst = cacheFor(this, 'firstObject'),

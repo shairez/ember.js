@@ -15,6 +15,8 @@ var o_defineProperty = Ember.platform.defineProperty,
     numberCache  = [],
     stringCache  = {};
 
+var MANDATORY_SETTER = Ember.ENV.MANDATORY_SETTER;
+
 /**
   @private
   @static
@@ -29,6 +31,13 @@ var o_defineProperty = Ember.platform.defineProperty,
   disabled so they won't show up when you iterate over your properties.
 */
 Ember.GUID_KEY = GUID_KEY;
+
+var GUID_DESC = {
+  writable:    false,
+  configurable: false,
+  enumerable:  false,
+  value: null
+};
 
 /**
   @private
@@ -50,17 +59,13 @@ Ember.GUID_KEY = GUID_KEY;
 
   @returns {String} the guid
 */
-Ember.generateGuid = function(obj, prefix) {
+Ember.generateGuid = function generateGuid(obj, prefix) {
   if (!prefix) prefix = 'ember';
   var ret = (prefix + (uuid++));
   if (obj) {
-    o_defineProperty(obj, GUID_KEY, {
-      configurable: true,
-      writable: true,
-      value: ret
-    });
+    GUID_DESC.value = ret;
+    o_defineProperty(obj, GUID_KEY, GUID_DESC);
   }
-
   return ret ;
 };
 
@@ -77,7 +82,7 @@ Ember.generateGuid = function(obj, prefix) {
   @param obj {Object} any object, string, number, Element, or primitive
   @returns {String} the unique guid for this instance.
 */
-Ember.guidFor = function(obj) {
+Ember.guidFor = function guidFor(obj) {
 
   // special cases where we don't want to add a key to object
   if (obj === undefined) return "(undefined)";
@@ -105,10 +110,12 @@ Ember.guidFor = function(obj) {
       if (obj[GUID_KEY]) return obj[GUID_KEY];
       if (obj === Object) return '(Object)';
       if (obj === Array)  return '(Array)';
-      return Ember.generateGuid(obj, 'ember');
+      ret = 'ember'+(uuid++);
+      GUID_DESC.value = ret;
+      o_defineProperty(obj, GUID_KEY, GUID_DESC);
+      return ret;
   }
 };
-
 
 // ..........................................................
 // META
@@ -137,9 +144,28 @@ var EMPTY_META = {
   watching: {}
 };
 
+if (MANDATORY_SETTER) { EMPTY_META.values = {}; }
+
+Ember.EMPTY_META = EMPTY_META;
+
 if (Object.freeze) Object.freeze(EMPTY_META);
 
-var createMeta = Ember.platform.defineProperty.isSimulated ? o_create : (function(meta) { return meta; });
+var isDefinePropertySimulated = Ember.platform.defineProperty.isSimulated;
+
+function Meta(obj) {
+  this.descs = {};
+  this.watching = {};
+  this.cache = {};
+  this.source = obj;
+}
+
+if (isDefinePropertySimulated) {
+  // on platforms that don't support enumerable false
+  // make meta fail jQuery.isPlainObject() to hide from
+  // jQuery.extend() by having a property that fails
+  // hasOwnProperty check.
+  Meta.prototype.__preventPlainObject__ = true;
+}
 
 /**
   @private
@@ -168,28 +194,29 @@ Ember.meta = function meta(obj, writable) {
   if (writable===false) return ret || EMPTY_META;
 
   if (!ret) {
-    o_defineProperty(obj, META_KEY, META_DESC);
-    ret = obj[META_KEY] = createMeta({
-      descs: {},
-      watching: {},
-      values: {},
-      cache:  {},
-      source: obj
-    });
+    if (!isDefinePropertySimulated) o_defineProperty(obj, META_KEY, META_DESC);
+
+    ret = new Meta(obj);
+
+    if (MANDATORY_SETTER) { ret.values = {}; }
+
+    obj[META_KEY] = ret;
 
     // make sure we don't accidentally try to create constructor like desc
     ret.descs.constructor = null;
 
   } else if (ret.source !== obj) {
+    if (!isDefinePropertySimulated) o_defineProperty(obj, META_KEY, META_DESC);
+
     ret = o_create(ret);
     ret.descs    = o_create(ret.descs);
-    ret.values   = o_create(ret.values);
     ret.watching = o_create(ret.watching);
     ret.cache    = {};
     ret.source   = obj;
 
-    o_defineProperty(obj, META_KEY, META_DESC);
-    ret = obj[META_KEY] = createMeta(ret);
+    if (MANDATORY_SETTER) { ret.values = o_create(ret.values); }
+
+    obj[META_KEY] = ret;
   }
   return ret;
 };
@@ -235,7 +262,7 @@ Ember.setMeta = function setMeta(obj, property, value) {
     (or meta property) if one does not already exist or if it's
     shared with its constructor
 */
-Ember.metaPath = function(obj, path, writable) {
+Ember.metaPath = function metaPath(obj, path, writable) {
   var meta = Ember.meta(obj, writable), keyName, value;
 
   for (var i=0, l=path.length; i<l; i++) {
@@ -323,7 +350,7 @@ Ember.isArray = function(obj) {
       Ember.makeArray();          => []
       Ember.makeArray(null);      => []
       Ember.makeArray(undefined); => []
-      Ember.makeArray('lindsay'); => ['lindsay'] 
+      Ember.makeArray('lindsay'); => ['lindsay']
       Ember.makeArray([1,2,42]);  => [1,2,42]
 
       var controller = Ember.ArrayProxy.create({ content: [] });
@@ -335,4 +362,35 @@ Ember.isArray = function(obj) {
 Ember.makeArray = function(obj) {
   if (obj === null || obj === undefined) { return []; }
   return Ember.isArray(obj) ? obj : [obj];
+};
+
+function canInvoke(obj, methodName) {
+  return !!(obj && typeof obj[methodName] === 'function');
+}
+
+/**
+  Checks to see if the `methodName` exists on the `obj`.
+
+  @param {Object} obj The object to check for the method
+  @param {String} methodName The method name to check for
+*/
+Ember.canInvoke = canInvoke;
+
+/**
+  Checks to see if the `methodName` exists on the `obj`,
+  and if it does, invokes it with the arguments passed.
+
+  @function
+
+  @param {Object} obj The object to check for the method
+  @param {String} methodName The method name to check for
+  @param {Array} args The arguments to pass to the method
+
+  @returns {Boolean} true if the method does not return false
+  @returns {Boolean} false otherwise
+*/
+Ember.tryInvoke = function(obj, methodName, args) {
+  if (canInvoke(obj, methodName)) {
+    return obj[methodName].apply(obj, args);
+  }
 };

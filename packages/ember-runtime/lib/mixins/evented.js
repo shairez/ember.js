@@ -1,11 +1,3 @@
-var get = Ember.get, set = Ember.set, a_slice = Array.prototype.slice;
-
-/** @private */
-function xform(target, method, params) {
-  var args = a_slice.call(params, 2);
-  method.apply(target, args);
-}
-
 /**
  @class
 
@@ -14,12 +6,7 @@ function xform(target, method, params) {
 Ember.Evented = Ember.Mixin.create(
   /** @scope Ember.Evented.prototype */ {
   on: function(name, target, method) {
-    if (!method) {
-      method = target;
-      target = null;
-    }
-
-    Ember.addListener(this, name, target, method, xform);
+    Ember.addListener(this, name, target, method);
   },
 
   one: function(name, target, method) {
@@ -28,8 +15,11 @@ Ember.Evented = Ember.Mixin.create(
       target = null;
     }
 
+    var self = this;
     var wrapped = function() {
-      Ember.removeListener(this, name, target, wrapped);
+      Ember.removeListener(self, name, target, wrapped);
+
+      if ('string' === typeof method) { method = this[method]; }
 
       // Internally, a `null` target means that the target is
       // the first parameter to addListener. That means that
@@ -42,7 +32,11 @@ Ember.Evented = Ember.Mixin.create(
   },
 
   trigger: function(name) {
-   Ember.sendEvent.apply(null, [this, name].concat(a_slice.call(arguments, 1)));
+    var args = [], i, l;
+    for (i = 1, l = arguments.length; i < l; i++) {
+      args.push(arguments[i]);
+    }
+    Ember.sendEvent(this, name, args);
   },
 
   fire: function(name) {

@@ -149,3 +149,7 @@ if (!platform.defineProperty) {
 
   platform.defineProperty.isSimulated = true;
 }
+
+if (Ember.ENV.MANDATORY_SETTER && !platform.hasPropertyAccessors) {
+  Ember.ENV.MANDATORY_SETTER = false;
+}

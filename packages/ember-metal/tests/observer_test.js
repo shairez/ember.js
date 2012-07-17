@@ -237,7 +237,8 @@ testBoth('addObserver should respect targets with methods', function(get,set){
   var target1 = {
     count: 0,
 
-    didChange: function(obj, keyName, value) {
+    didChange: function(obj, keyName) {
+      var value = get(obj, keyName);
       equal(this, target1, 'should invoke with this');
       equal(obj, observed, 'param1 should be observed object');
       equal(keyName, 'foo', 'param2 should be keyName');
@@ -249,7 +250,8 @@ testBoth('addObserver should respect targets with methods', function(get,set){
   var target2 = {
     count: 0,
 
-    didChange: function(obj, keyName, value) {
+    didChange: function(obj, keyName) {
+      var value = get(obj, keyName);
       equal(this, target2, 'should invoke with this');
       equal(obj, observed, 'param1 should be observed object');
       equal(keyName, 'foo', 'param2 should be keyName');
@@ -266,30 +268,6 @@ testBoth('addObserver should respect targets with methods', function(get,set){
   equal(target2.count, 1, 'target2 observer should have fired');
 
 });
-
-testBoth('addObserver should preserve additional context passed when firing the observer', function(get, set) {
-  var observed = { foo: 'foo' };
-
-  var target1 = {
-    count: 0,
-
-    didChange: function(obj, keyName, value, ctx1, ctx2) {
-      equal(ctx1, "biff", "first context is passed");
-      equal(ctx2, "bang", "second context is passed");
-      equal(5, arguments.length);
-      this.count++;
-    }
-  };
-
-  Ember.addObserver(observed, 'foo', target1, 'didChange', "biff", "bang");
-
-  set(observed, 'foo', 'BAZ');
-  equal(target1.count, 1, 'target1 observer should have fired');
-
-  set(observed, 'foo', 'BAZ2');
-  equal(target1.count, 2, 'target1 observer should have fired');
-});
-
 
 testBoth('addObserver should allow multiple objects to observe a property', function(get, set) { var observed = { foo: 'foo' };
 
@@ -456,7 +434,8 @@ testBoth('addBeforeObserver should respect targets with methods', function(get,s
   var target1 = {
     count: 0,
 
-    willChange: function(obj, keyName, value) {
+    willChange: function(obj, keyName) {
+      var value = get(obj, keyName);
       equal(this, target1, 'should invoke with this');
       equal(obj, observed, 'param1 should be observed object');
       equal(keyName, 'foo', 'param2 should be keyName');
@@ -468,7 +447,8 @@ testBoth('addBeforeObserver should respect targets with methods', function(get,s
   var target2 = {
     count: 0,
 
-    willChange: function(obj, keyName, value) {
+    willChange: function(obj, keyName) {
+      var value = get(obj, keyName);
       equal(this, target2, 'should invoke with this');
       equal(obj, observed, 'param1 should be observed object');
       equal(keyName, 'foo', 'param2 should be keyName');
@@ -525,8 +505,8 @@ module('Ember.addObserver - dependentkey with chained properties', {
 testBoth('depending on a simple chain', function(get, set) {
 
   var val ;
-  Ember.addObserver(obj, 'foo.bar.baz.biff', function(target, key, value) {
-    val = value;
+  Ember.addObserver(obj, 'foo.bar.baz.biff', function(target, key) {
+    val = Ember.getPath(target, key);
     count++;
   });
 
@@ -563,8 +543,8 @@ testBoth('depending on a simple chain', function(get, set) {
 testBoth('depending on a Global chain', function(get, set) {
 
   var val ;
-  Ember.addObserver(obj, 'Global.foo.bar.baz.biff', function(target, key, value){
-    val = value;
+  Ember.addObserver(obj, 'Global.foo.bar.baz.biff', function(target, key){
+    val = Ember.getPath(window, key);
     count++;
   });
 
